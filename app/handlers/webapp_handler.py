@@ -32,10 +32,10 @@ def get_webapp_keyboard(bot_username: str, chat_id: int) -> InlineKeyboardMarkup
     )
 
 
-@router.message(Command("bugtest"))
+@router.message(Command("bug"))
 async def cmd_bug(message: Message, bot: Bot):
-    """Обработчик команды /bugtest"""
-    logger.info(f"Получена команда /bugtest из чата {message.chat.id}")
+    """Обработчик команды /bug"""
+    logger.info(f"Получена команда /bug из чата {message.chat.id}")
 
     username = _bot_info.username if _bot_info else (await bot.get_me()).username
 
