@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bug Report</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
+</head>
+<body>
+    <div class="top-buttons" id="top-buttons">
+        <button class="top-btn" id="my-reports-btn" onclick="switchPage('my-reports')">Мои репорты</button>
+        <button class="top-btn" id="admin-btn" style="display: none;" onclick="switchPage('admin')">Админка</button>
+    </div>
+
+    <div id="upload-overlay" class="upload-overlay">
+        <div class="upload-modal">
+            <h3 id="upload-title">Загрузка файлов</h3>
+            <div id="upload-stage" class="upload-stage">Этап 1 из 2: Загрузка на сервер</div>
+            <div class="progress-bar">
+                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+            <div id="progress-text" class="progress-text">0%</div>
+            <div id="upload-hint" class="upload-hint"></div>
+        </div>
+    </div>
+
+    <div id="page-form" class="page active">
+        <h1>Bug Report</h1>
+
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message">
+            <h2>Отчёт отправлен!</h2>
+            <p>Окно закроется автоматически...</p>
+        </div>
+
+        <form id="bug-form">
+            <div class="form-group">
+                <label class="required">Ваш логин</label>
+                <input type="text" id="login" placeholder="Введите ваш логин" required>
+            </div>
+
+            <div class="form-group">
+                <label class="required">Платформа</label>
+                <div class="button-group" id="platform-group">
+                    <button type="button" data-value="iOS">iOS</button>
+                    <button type="button" data-value="Android">Android</button>
+                </div>
+                <input type="hidden" id="platform" required>
+            </div>
+
+            <div class="form-group">
+                <label class="required">Версия приложения</label>
+                <input type="text" id="version" placeholder="Например: 12.3.1" required>
+            </div>
+
+            <div class="form-group">
+                <label class="required">Время возникновения ошибки</label>
+                <input type="datetime-local" id="error_time" required>
+            </div>
+
+            <div class="form-group">
+                <label class="required">Сервер</label>
+                <div class="button-group" id="server-group">
+                    <button type="button" data-value="Corbina">Corbina</button>
+                    <button type="button" data-value="Beeline">Beeline</button>
+                </div>
+                <input type="hidden" id="server" required>
+            </div>
+
+            <div class="form-group">
+                <label>Логин абонента / Номер заявки</label>
+                <input type="text" id="subscriber" placeholder="При наличии">
+                <div class="hint">Необязательное поле</div>
+            </div>
+
+            <div class="form-group">
+                <label class="required">Описание ошибки</label>
+                <textarea id="description" placeholder="Опишите ошибку и ваши действия" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Скриншоты / Видео</label>
+                <div class="file-upload">
+                    <input type="file" id="media" accept="image/*,video/*" multiple>
+                    <div class="file-upload-icon">📎</div>
+                    <div class="file-upload-text">Нажмите для загрузки (до 10 файлов)</div>
+                </div>
+                <div id="file-error" class="file-error"></div>
+                <div id="files-list" class="files-list"></div>
+                <div id="files-counter" class="files-counter"></div>
+                <div class="hint">Необязательное поле. Лимит: 500MB на файл</div>
+            </div>
+
+            <div class="warning-banner">
+                ⚠️ Передача персональных данных запрещена
+            </div>
+        </form>
+    </div>
+
+    <div id="page-my-reports" class="page">
+        <button class="back-btn" onclick="switchPage('form')">← Назад</button>
+        <h1>Мои репорты</h1>
+
+        <div id="my-loading" class="loading">Загрузка...</div>
+        <div id="my-empty" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📋</div>
+            <p>У вас пока нет репортов</p>
+        </div>
+        <div id="my-report-list" class="report-list"></div>
+    </div>
+
+    <div id="page-admin" class="page">
+        <button class="back-btn" onclick="switchPage('form')">← Назад</button>
+        <h1>Админ-панель</h1>
+
+        <div id="admin-stats" class="stats" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Всего</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-open">0</div>
+                <div class="stat-label">Новые</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-progress">0</div>
+                <div class="stat-label">В работе</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-resolved">0</div>
+                <div class="stat-label">Завершено</div>
+            </div>
+        </div>
+
+        <div id="admin-toolbar" class="admin-toolbar" style="display: none;">
+            <div class="search-row">
+                <input type="text" id="admin-search-input" class="search-input" placeholder="Поиск по описанию, логину, номеру...">
+                <button class="search-btn" onclick="searchReports()">🔍</button>
+            </div>
+            <button class="export-btn" onclick="exportCSV()">📥 Экспорт CSV</button>
+        </div>
+
+        <div id="admin-filters" class="filters" style="display: none;">
+            <button class="filter-btn active" data-status="">Все</button>
+            <button class="filter-btn" data-status="new">Новые</button>
+            <button class="filter-btn" data-status="revision">Доработка</button>
+            <button class="filter-btn" data-status="in_progress">В работе</button>
+            <button class="filter-btn" data-status="completed">Завершённые</button>
+            <button class="filter-btn" data-status="trash">Отказ</button>
+        </div>
+
+        <div id="admin-loading" class="loading">Загрузка...</div>
+        <div id="admin-empty" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📋</div>
+            <p>Нет репортов</p>
+        </div>
+        <div id="admin-report-list" class="report-list"></div>
+    </div>
+
+    <div id="user-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="user-modal-title">Репорт</span>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+
+            <div id="user-modal-error" class="modal-error"></div>
+
+            <div class="detail-row">
+                <div class="detail-label">Статус</div>
+                <div class="detail-value" id="user-detail-status">-</div>
+            </div>
+
+            <div class="detail-row" id="user-revision-comment-row" style="display: none;">
+                <div class="detail-label">Что требуется доработать</div>
+                <div class="detail-value" id="user-detail-comment" style="background-color: #fff3e0; padding: 12px; border-radius: 8px; color: #e65100;">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Tracking ID</div>
+                <div class="detail-value" id="user-detail-tracking">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Ваш логин</div>
+                <input type="text" class="detail-input" id="user-detail-login" style="min-height: auto;">
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Платформа</div>
+                <div class="button-group" id="user-platform-group">
+                    <button type="button" class="platform-btn" data-value="iOS">iOS</button>
+                    <button type="button" class="platform-btn" data-value="Android">Android</button>
+                </div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Версия</div>
+                <input type="text" class="detail-input" id="user-detail-version" style="min-height: auto;">
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Время ошибки</div>
+                <input type="text" class="detail-input" id="user-detail-time" style="min-height: auto;">
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Сервер</div>
+                <div class="button-group" id="user-server-group">
+                    <button type="button" class="server-btn" data-value="Corbina">Corbina</button>
+                    <button type="button" class="server-btn" data-value="Beeline">Beeline</button>
+                </div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Логин абонента / № заявки</div>
+                <input type="text" class="detail-input" id="user-detail-subscriber" style="min-height: auto;">
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Описание</div>
+                <textarea class="detail-input" id="user-detail-description" rows="4"></textarea>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Создан</div>
+                <div class="detail-value" id="user-detail-created">-</div>
+            </div>
+
+            <button class="save-btn" id="user-save-btn" onclick="saveUserReport()">Сохранить изменения</button>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="admin-modal-title">Репорт</span>
+                <button class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+
+            <div id="admin-modal-error" class="modal-error"></div>
+
+            <div class="detail-row">
+                <div class="detail-label">Автор</div>
+                <div class="detail-value" id="admin-detail-user">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Статус</div>
+                <select class="detail-select" id="admin-detail-status" onchange="toggleRevisionComment()">
+                    <option value="new">Новая</option>
+                    <option value="revision">Доработка</option>
+                    <option value="in_progress">В работе</option>
+                    <option value="completed">Завершена</option>
+                    <option value="trash">Отказ</option>
+                </select>
+            </div>
+
+            <div class="detail-row" id="revision-comment-row" style="display: none;">
+                <div class="detail-label">Комментарий (что доработать)</div>
+                <textarea class="detail-input" id="admin-detail-comment" placeholder="Укажите, что требуется доработать..." rows="3"></textarea>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Tracking ID</div>
+                <input type="text" class="detail-input" id="admin-detail-tracking" placeholder="Введите ID для отслеживания" style="min-height: auto;">
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Логин пользователя</div>
+                <div class="detail-value" id="admin-detail-login">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Платформа</div>
+                <div class="detail-value" id="admin-detail-platform">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Версия</div>
+                <div class="detail-value" id="admin-detail-version">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Время ошибки</div>
+                <div class="detail-value" id="admin-detail-time">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Сервер</div>
+                <div class="detail-value" id="admin-detail-server">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Логин абонента / № заявки</div>
+                <div class="detail-value" id="admin-detail-subscriber">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Описание</div>
+                <div class="detail-value" id="admin-detail-description" style="white-space: pre-wrap;">-</div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Создан</div>
+                <div class="detail-value" id="admin-detail-created">-</div>
+            </div>
+
+            <button class="save-btn" id="admin-save-btn" onclick="saveAdminReport()">Сохранить</button>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=7"></script>
+</body>
+</html>
